@@ -2,15 +2,10 @@ package gompb
 
 import "sync"
 
-type Header struct {
-	EventType string
-	Command   string
-	CreatedAt int64
-	MessageId string
-}
+type MessageHandler func(h map[string]interface{}, b []byte)
 
 type Message struct {
-	Header Header
+	Header map[string]interface{}
 	Body   []byte
 }
 
@@ -25,7 +20,7 @@ func NewMemoryPubSub() *MemoryPubSub {
 	}
 }
 
-func (ps *MemoryPubSub) Subscribe(topic string, pool int) <-chan Message {
+func (ps *MemoryPubSub) subscribe(topic string, pool int) <-chan Message {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -34,13 +29,16 @@ func (ps *MemoryPubSub) Subscribe(topic string, pool int) <-chan Message {
 	return ch
 }
 
-func (ps *MemoryPubSub) Publish(topic string, msg Message) {
+func (ps *MemoryPubSub) Publish(topic string, msg Message) bool {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
-
+	if _, ok := ps.subscribers[topic]; !ok {
+		return false
+	}
 	for _, ch := range ps.subscribers[topic] {
 		ch <- msg
 	}
+	return true
 }
 
 func (ps *MemoryPubSub) Unsubscribe(topic string, ch <-chan Message) {
@@ -77,4 +75,49 @@ func (ps *MemoryPubSub) Close() error {
 	}
 
 	return nil
+}
+
+func (ps *MemoryPubSub) Subscribers(topic string) int {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	return len(ps.subscribers[topic])
+}
+
+func (ps *MemoryPubSub) Topics() []string {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	var topics []string
+	for topic := range ps.subscribers {
+		topics = append(topics, topic)
+	}
+
+	return topics
+}
+
+func (ps *MemoryPubSub) TopicExists(topic string) bool {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	_, ok := ps.subscribers[topic]
+	return ok
+}
+
+func (ps *MemoryPubSub) TopicSize(topic string) int {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	return len(ps.subscribers[topic])
+}
+
+func (ps *MemoryPubSub) Consume(topic string, pool int, handler func(h map[string]interface{}, b []byte)) {
+	ch := ps.subscribe(topic, pool)
+	for i := 0; i < pool; i++ {
+		go func() {
+			for msg := range ch {
+				handler(msg.Header, msg.Body)
+			}
+		}()
+	}
 }
