@@ -2,8 +2,6 @@ package gompb
 
 import "sync"
 
-type MessageHandler func(h map[string]interface{}, b []byte)
-
 type Message struct {
 	Header map[string]interface{}
 	Body   []byte

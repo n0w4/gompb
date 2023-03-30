@@ -39,17 +39,11 @@ msg := gompb.Message{
 - Publish return `false` when no have subscribers on topic, you need consume a topic before publish
 
 ```go
-// SOME HANDLER
+// ALL TOGETHER
 
-type MessageHandler struct{}
-
-func (sh *MessageHandler) Handle(header map[string]interface{}, body []byte) {
+handler := func(header map[string]interface{}, body []byte) {
 	// do some thing 
 }
-```
-
-```go
-// ALL TOGETHER
 
 handler := MessageHandler{}
 
@@ -62,4 +56,21 @@ pb.Publish("test_topic", msg1)
 pb.Publish("test_topic", msg2)
 pb.Publish("test_topic", msg3)
 pb.Publish("test_topic", msg4)
+
+
+// Get the number of subscribers for a topic
+pb.Subscribers("test_topic")
+
+// Get the list of topics
+pb.Topics()
+
+// Check if a topic exists
+pb.TopicExists("test_topic")
+
+// Get the number of subscribers for a topic
+pb.TopicSize("test_topic")
+
+// Close the topic and the pub/sub system
+pb.CloseTopic("test_topic")
+pb.Close()
 ```
